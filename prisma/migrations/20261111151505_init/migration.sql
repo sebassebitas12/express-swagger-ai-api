@@ -1,0 +1,7 @@
+-- CreateTable
+CREATE TABLE "Nota" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "titulo" TEXT NOT NULL,
+    "contenido" TEXT NOT NULL,
+    "creada" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
