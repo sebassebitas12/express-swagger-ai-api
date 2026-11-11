@@ -5,9 +5,10 @@ module.exports = swaggerJsdoc({
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'Lab 5: Notas + IA + Agentes',
+      title: 'Lab 5: API REST + MySQL + IA + Agentes',
       version: '1.0.0',
-      description: 'API REST con Express, Controladores, Servicios, Prisma, Swagger y Agentes IA',
+      description:
+        'API REST conectada a MySQL (Usuarios, Categorías, Notas, Etiquetas e Historial IA) con Controladores, Servicios y DeepSeek/Claude IA',
     },
     servers: [{ url: 'http://localhost:3000' }],
     components: {
@@ -16,15 +17,50 @@ module.exports = swaggerJsdoc({
           type: 'object',
           required: ['titulo', 'contenido'],
           properties: {
-            titulo: { type: 'string', example: 'Apuntes de REST' },
-            contenido: { type: 'string', example: 'REST es un estilo arquitectónico para sistemas distribuidos...' },
+            titulo: { type: 'string', example: 'Apuntes de REST y MySQL' },
+            contenido: {
+              type: 'string',
+              example: 'REST usa verbos HTTP y se conecta a MySQL mediante controladores y servicios...',
+            },
+            prioridad: { type: 'string', enum: ['baja', 'media', 'alta'], example: 'alta' },
+            estado: { type: 'string', enum: ['activa', 'archivada', 'completada'], example: 'activa' },
+            usuario_id: { type: 'integer', example: 1 },
+            categoria_id: { type: 'integer', example: 1 },
           },
         },
         NotaParcial: {
           type: 'object',
           properties: {
-            titulo: { type: 'string', example: 'Título actualizado' },
+            titulo: { type: 'string', example: 'Título actualizado en MySQL' },
             contenido: { type: 'string', example: 'Contenido actualizado parcialmente' },
+            prioridad: { type: 'string', enum: ['baja', 'media', 'alta'], example: 'alta' },
+            estado: { type: 'string', enum: ['activa', 'archivada', 'completada'], example: 'completada' },
+          },
+        },
+        Usuario: {
+          type: 'object',
+          required: ['nombre', 'email'],
+          properties: {
+            nombre: { type: 'string', example: 'Carlos Ramírez' },
+            email: { type: 'string', example: 'carlos@universidad.edu' },
+            rol: { type: 'string', enum: ['estudiante', 'docente', 'admin'], example: 'estudiante' },
+          },
+        },
+        Categoria: {
+          type: 'object',
+          required: ['nombre'],
+          properties: {
+            nombre: { type: 'string', example: 'Bases de Datos MySQL' },
+            descripcion: { type: 'string', example: 'Consultas SQL, relaciones y modelos' },
+            color: { type: 'string', example: '#3b82f6' },
+          },
+        },
+        Etiqueta: {
+          type: 'object',
+          required: ['nombre', 'nota_id'],
+          properties: {
+            nombre: { type: 'string', example: 'mysql' },
+            nota_id: { type: 'integer', example: 1 },
           },
         },
         TraducirInput: {
@@ -53,7 +89,10 @@ module.exports = swaggerJsdoc({
           type: 'object',
           required: ['mensaje'],
           properties: {
-            mensaje: { type: 'string', example: 'Analiza mis notas actuales y dime qué temas estoy estudiando' },
+            mensaje: {
+              type: 'string',
+              example: 'Analiza mis notas actuales en MySQL y dime qué temas estoy estudiando',
+            },
             tipo: { type: 'string', enum: ['soporte', 'analista'], example: 'analista' },
             incluirNotas: { type: 'boolean', example: true },
           },
@@ -66,5 +105,5 @@ module.exports = swaggerJsdoc({
     './src/app.js',
     path.join(__dirname, '../routes/*.js').replace(/\\/g, '/'),
     path.join(__dirname, '../app.js').replace(/\\/g, '/'),
-  ], // dónde leer los @openapi
+  ],
 });

@@ -17,7 +17,12 @@ app.use(express.json());
  */
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(spec));
 app.get('/api-docs.json', (req, res) => res.json(spec));
+
 app.use('/api/notas', require('./routes/notas.routes'));
+app.use('/api/usuarios', require('./routes/usuarios.routes'));
+app.use('/api/categorias', require('./routes/categorias.routes'));
+app.use('/api/etiquetas', require('./routes/etiquetas.routes'));
+app.use('/api/db', require('./routes/db.routes'));
 app.use('/api/ia', require('./routes/ia.routes'));
 app.use('/api/agent', require('./routes/agent.routes'));
 

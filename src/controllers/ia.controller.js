@@ -1,11 +1,19 @@
 const claude = require('../services/claude.service');
 const { soporte, analistaNotas } = require('../services/agent.service');
 const notasService = require('../services/notas.service');
+const dbService = require('../services/db.service');
 
 const sesiones = new Map();
 
 async function preguntarIA(req, res) {
   const r = await claude.preguntar(req.body.pregunta, req.body.system);
+  await dbService.registrarHistorialIA({
+    tipo: 'preguntar',
+    prompt: req.body.pregunta,
+    respuesta: r.respuesta,
+    input_tokens: r.uso?.input_tokens || 0,
+    output_tokens: r.uso?.output_tokens || 0,
+  });
   res.json(r);
 }
 
@@ -19,6 +27,14 @@ async function chatIA(req, res) {
 
   recortado.push({ role: 'assistant', content: r.respuesta });
   sesiones.set(sesionId, recortado);
+
+  await dbService.registrarHistorialIA({
+    tipo: `chat_${sesionId}`,
+    prompt: mensaje,
+    respuesta: r.respuesta,
+    input_tokens: r.uso?.input_tokens || 0,
+    output_tokens: r.uso?.output_tokens || 0,
+  });
 
   res.json({
     sesionId,
@@ -59,13 +75,25 @@ async function ejecutarAgente(req, res) {
   if (incluirNotas) {
     const lista = await notasService.listar();
     const resumenNotas = lista
-      .map((n) => `[ID ${n.id}] ${n.titulo}: ${n.contenido}`)
+      .map(
+        (n) =>
+          `[ID ${n.id} | Categoría: ${n.categoria_nombre || 'Sin categoría'} | Autor: ${n.usuario_nombre || 'Anónimo'}] ${n.titulo}: ${n.contenido}`
+      )
       .join('\n');
-    contexto = `Notas actuales en el sistema:\n${resumenNotas || '(Sin notas)'}\n\nConsulta del usuario: ${mensaje}`;
+    contexto = `Notas actuales en la base de datos MySQL:\n${resumenNotas || '(Sin notas)'}\n\nConsulta del usuario: ${mensaje}`;
   }
 
   const agente = tipo === 'analista' ? analistaNotas : soporte;
   const r = await agente(contexto);
+
+  await dbService.registrarHistorialIA({
+    tipo: `agente_${tipo}`,
+    prompt: mensaje,
+    respuesta: r.respuesta,
+    input_tokens: r.uso?.input_tokens || 0,
+    output_tokens: r.uso?.output_tokens || 0,
+  });
+
   res.json({
     agente: tipo,
     respuesta: r.respuesta,

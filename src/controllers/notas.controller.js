@@ -1,9 +1,12 @@
 const notas = require('../services/notas.service');
 const claude = require('../services/claude.service');
+const dbService = require('../services/db.service');
 
 async function listarNotas(req, res) {
   const filtro = req.query.buscar || undefined;
-  const lista = await notas.listar(filtro);
+  const categoriaId = req.query.categoria_id || undefined;
+  const usuarioId = req.query.usuario_id || undefined;
+  const lista = await notas.listar(filtro, categoriaId, usuarioId);
   res.json(lista);
 }
 
@@ -33,11 +36,18 @@ async function eliminarNota(req, res) {
 }
 
 async function resumirNota(req, res) {
-  const nota = await notas.buscar(Number(req.params.id)); // 404 si no existe
+  const nota = await notas.buscar(Number(req.params.id));
   const r = await claude.preguntar(
     nota.contenido,
     'Resume el texto en 3 viñetas breves, en español.'
   );
+  await dbService.registrarHistorialIA({
+    tipo: `resumen_nota_${nota.id}`,
+    prompt: nota.contenido,
+    respuesta: r.respuesta,
+    input_tokens: r.uso?.input_tokens || 0,
+    output_tokens: r.uso?.output_tokens || 0,
+  });
   res.json({ notaId: nota.id, resumen: r.respuesta });
 }
 
@@ -47,6 +57,13 @@ async function extraerPalabrasClave(req, res) {
     nota.contenido,
     'Extrae las 5 palabras o conceptos clave más importantes del texto, separados por comas, en español.'
   );
+  await dbService.registrarHistorialIA({
+    tipo: `palabras_clave_nota_${nota.id}`,
+    prompt: nota.contenido,
+    respuesta: r.respuesta,
+    input_tokens: r.uso?.input_tokens || 0,
+    output_tokens: r.uso?.output_tokens || 0,
+  });
   res.json({ notaId: nota.id, palabrasClave: r.respuesta, uso: r.uso });
 }
 
@@ -57,6 +74,13 @@ async function traducirNota(req, res) {
     `Título: ${nota.titulo}\nContenido: ${nota.contenido}`,
     `Traduce el siguiente texto al idioma ${idioma} manteniendo el sentido técnico.`
   );
+  await dbService.registrarHistorialIA({
+    tipo: `traducir_${idioma}_nota_${nota.id}`,
+    prompt: nota.contenido,
+    respuesta: r.respuesta,
+    input_tokens: r.uso?.input_tokens || 0,
+    output_tokens: r.uso?.output_tokens || 0,
+  });
   res.json({ notaId: nota.id, idioma, traduccion: r.respuesta, uso: r.uso });
 }
 
