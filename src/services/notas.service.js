@@ -1,7 +1,18 @@
 const prisma = require('../db');
 const { AppError } = require('../utils/errors');
 
-async function listar() {
+async function listar(filtro) {
+  if (filtro) {
+    return prisma.nota.findMany({
+      where: {
+        OR: [
+          { titulo: { contains: filtro } },
+          { contenido: { contains: filtro } },
+        ],
+      },
+      orderBy: { id: 'asc' },
+    });
+  }
   return prisma.nota.findMany({ orderBy: { id: 'asc' } });
 }
 
@@ -20,10 +31,17 @@ async function crear({ titulo, contenido }) {
   });
 }
 
+async function actualizar(id, datos) {
+  await buscar(id); // 404 si no existe
+  return prisma.nota.update({
+    where: { id },
+    data: datos,
+  });
+}
+
 async function eliminar(id) {
   await buscar(id); // lanza 404 si no existe
   await prisma.nota.delete({ where: { id } });
 }
 
-module.exports = { listar, buscar, crear, eliminar };
-
+module.exports = { listar, buscar, crear, actualizar, eliminar };

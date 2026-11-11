@@ -6,12 +6,21 @@ const errorHandler = require('./middlewares/errorHandler');
 const app = express();
 app.use(express.json());
 
+/**
+ * @openapi
+ * /api-docs:
+ *   get:
+ *     summary: Documentación interactiva (Swagger UI)
+ *     tags: [Notas]
+ *     responses:
+ *       200: { description: Interfaz de Swagger UI }
+ */
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(spec));
 app.get('/api-docs.json', (req, res) => res.json(spec));
 app.use('/api/notas', require('./routes/notas.routes'));
 app.use('/api/ia', require('./routes/ia.routes'));
+app.use('/api/agent', require('./routes/agent.routes'));
 
 app.use(errorHandler); // siempre al final
 
 module.exports = app;
-

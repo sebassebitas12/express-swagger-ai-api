@@ -1,34 +1,43 @@
 const router = require('express').Router();
 const { z } = require('zod');
 const validar = require('../middlewares/validar');
-const notas = require('../services/notas.service');
-const claude = require('../services/claude.service');
+const notasCtrl = require('../controllers/notas.controller');
 
 const notaSchema = z.object({
   titulo: z.string().min(1).max(100),
   contenido: z.string().min(1).max(5000),
 });
 
+const notaPatchSchema = z
+  .object({
+    titulo: z.string().min(1).max(100).optional(),
+    contenido: z.string().min(1).max(5000).optional(),
+  })
+  .refine((d) => d.titulo !== undefined || d.contenido !== undefined, {
+    message: 'Debe proporcionar al menos titulo o contenido',
+  });
+
+const traducirSchema = z.object({
+  idioma: z.string().min(2).max(40).default('inglés'),
+});
+
 /**
  * @openapi
  * /api/notas:
  *   get:
- *     summary: Lista todas las notas
+ *     summary: Lista todas las notas o filtra por palabra clave
  *     tags: [Notas]
+ *     parameters:
+ *       - in: query
+ *         name: buscar
+ *         required: false
+ *         description: Texto opcional para filtrar por título o contenido
+ *         schema: { type: string }
  *     responses:
- *       200:
- *         description: Lista de notas
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/Nota'
+ *       200: { description: Lista de notas obtenida correctamente }
+ *       500: { description: Error interno del servidor }
  */
-router.get('/', async (req, res) => {
-  const lista = await notas.listar();
-  res.json(lista);
-});
+router.get('/', notasCtrl.listarNotas);
 
 /**
  * @openapi
@@ -40,101 +49,155 @@ router.get('/', async (req, res) => {
  *       - in: path
  *         name: id
  *         required: true
- *         schema:
- *           type: integer
+ *         schema: { type: integer }
  *     responses:
- *       200:
- *         description: Nota encontrada
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Nota'
- *       404:
- *         description: Nota no encontrada
+ *       200: { description: Nota encontrada }
+ *       404: { description: Nota no encontrada }
  */
-router.get('/:id', async (req, res) => {
-  const nota = await notas.buscar(Number(req.params.id));
-  res.json(nota);
-});
+router.get('/:id', notasCtrl.obtenerNota);
 
 /**
  * @openapi
  * /api/notas:
  *   post:
- *     summary: Crea una nueva nota
+ *     summary: Crea una nota (titulo, contenido)
  *     tags: [Notas]
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/NotaInput'
+ *             $ref: '#/components/schemas/Nota'
  *     responses:
- *       201:
- *         description: Nota creada
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Nota'
- *       400:
- *         description: Datos inválidos (Zod)
+ *       201: { description: Nota creada }
+ *       400: { description: Datos inválidos }
  */
-router.post('/', validar(notaSchema), async (req, res) => {
-  const creada = await notas.crear(req.body);
-  res.status(201).json(creada);
-});
+router.post('/', validar(notaSchema), notasCtrl.crearNota);
 
 /**
  * @openapi
  * /api/notas/{id}:
- *   delete:
- *     summary: Elimina una nota por su ID
+ *   put:
+ *     summary: Actualiza completamente una nota existente
  *     tags: [Notas]
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
- *         schema:
- *           type: integer
+ *         schema: { type: integer }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/Nota'
  *     responses:
- *       204:
- *         description: Nota eliminada sin contenido
- *       404:
- *         description: Nota no encontrada
+ *       200: { description: Nota actualizada }
+ *       400: { description: Datos inválidos }
+ *       404: { description: Nota no encontrada }
  */
-router.delete('/:id', async (req, res) => {
-  await notas.eliminar(Number(req.params.id));
-  res.status(204).send();
-});
+router.put('/:id', validar(notaSchema), notasCtrl.actualizarNota);
+
+/**
+ * @openapi
+ * /api/notas/{id}:
+ *   patch:
+ *     summary: Actualiza parcialmente el título o contenido de una nota
+ *     tags: [Notas]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/NotaParcial'
+ *     responses:
+ *       200: { description: Nota modificada parcialmente }
+ *       400: { description: Datos inválidos }
+ *       404: { description: Nota no encontrada }
+ */
+router.patch('/:id', validar(notaPatchSchema), notasCtrl.actualizarNotaParcial);
+
+/**
+ * @openapi
+ * /api/notas/{id}:
+ *   delete:
+ *     summary: Elimina una nota
+ *     tags: [Notas]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       204: { description: Nota eliminada }
+ *       404: { description: Nota no encontrada }
+ */
+router.delete('/:id', notasCtrl.eliminarNota);
 
 /**
  * @openapi
  * /api/notas/{id}/resumen:
  *   post:
- *     summary: Resume el contenido de una nota en 3 viñetas usando IA
+ *     summary: Resume una nota en 3 viñetas con IA
  *     tags: [IA]
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
- *         schema:
- *           type: integer
+ *         schema: { type: integer }
  *     responses:
- *       200:
- *         description: Resumen generado por la IA
- *       404:
- *         description: Nota no encontrada
- *       502:
- *         description: IA no disponible
+ *       200: { description: Resumen de la nota en 3 viñetas }
+ *       404: { description: Nota no encontrada }
+ *       502: { description: IA no disponible }
  */
-router.post('/:id/resumen', async (req, res) => {
-  const nota = await notas.buscar(Number(req.params.id)); // 404 si no existe, sin llamar a la IA
-  const r = await claude.preguntar(
-    nota.contenido,
-    'Resume el texto en 3 viñetas breves, en español.'
-  );
-  res.json({ notaId: nota.id, resumen: r.respuesta });
-});
+router.post('/:id/resumen', notasCtrl.resumirNota);
+
+/**
+ * @openapi
+ * /api/notas/{id}/palabras-clave:
+ *   post:
+ *     summary: Extrae las 5 palabras clave principales de una nota con IA
+ *     tags: [IA]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       200: { description: Palabras clave extraídas }
+ *       404: { description: Nota no encontrada }
+ *       502: { description: IA no disponible }
+ */
+router.post('/:id/palabras-clave', notasCtrl.extraerPalabrasClave);
+
+/**
+ * @openapi
+ * /api/notas/{id}/traducir:
+ *   post:
+ *     summary: Traduce el título y contenido de una nota a otro idioma con IA
+ *     tags: [IA]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/TraducirInput'
+ *     responses:
+ *       200: { description: Nota traducida correctamente }
+ *       400: { description: Idioma inválido }
+ *       404: { description: Nota no encontrada }
+ *       502: { description: IA no disponible }
+ */
+router.post('/:id/traducir', validar(traducirSchema), notasCtrl.traducirNota);
 
 module.exports = router;
-
