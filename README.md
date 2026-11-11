@@ -85,10 +85,10 @@ Al modificar el prompt de sistema en `POST /api/notas/:id/resumen`, observamos c
 
 ## 📸 Capturas de Swagger UI (Casos ★)
 
-> Coloca tus capturas en la carpeta `docs/` tras probar con tu clave en `/api-docs`:
-- `docs/1-preguntar-200.png`: Respuesta `200 OK` en `POST /api/ia/preguntar` con `uso` de tokens.
-- `docs/2-resumen-200.png`: Respuesta `200 OK` en `POST /api/notas/1/resumen` con las 3 viñetas.
-- `docs/3-apikey-invalida-502.png`: Respuesta `502 IA_NO_DISPONIBLE` al usar una API key falsa y `401` registrado en consola.
+Capturas guardadas en la carpeta `docs/`:
+- ![Pregunta libre 200](docs/1-preguntar-200.jpg)
+- ![Resumen de nota 200](docs/2-resumen-200.jpg)
+- ![API key falsa 502](docs/3-apikey-invalida-502.png)
 
 ---
 
@@ -108,8 +108,8 @@ Nuestra API responde **`502 Bad Gateway`** con el cuerpo genérico `{ "error": "
 - **Ejemplo:** En `POST /api/notas/:id/resumen`, el parámetro `system` fija la regla `'Resume el texto en 3 viñetas breves, en español.'`, mientras que en `messages` enviamos como contenido `nota.contenido` (el texto de la nota guardada). Separarlos evita que el usuario tenga que escribir la instrucción cada vez y hace el comportamiento predecible.
 
 ### 4. Anoten los `input_tokens` y `output_tokens` de dos de sus llamadas. ¿Qué parámetro les permite limitar el costo?
-- **Llamada 1 (`POST /api/ia/preguntar` con `"¿Qué es REST?"`):** `input_tokens: 18`, `output_tokens: 142`.
-- **Llamada 2 (`POST /api/notas/1/resumen`):** `input_tokens: 45`, `output_tokens: 68`.
+- **Llamada 1 (`POST /api/ia/preguntar` con `"¿Qué es REST?"`):** `input_tokens: 22`, `output_tokens: 543`.
+- **Llamada 2 (`POST /api/notas/5/resumen`):** `input_tokens: 34`, `output_tokens: 95`.
 - **Parámetros que limitan el costo:**
   - En la **salida** (que es la más costosa por token): el parámetro **`max_tokens: 1024`** en la llamada al SDK pone un techo estricto a los tokens generados.
   - En la **entrada**: la validación con Zod **`.max(2000)`** sobre `req.body.pregunta` impide enviar textos gigantescos, y el middleware **`express-rate-limit`** limita la cantidad de peticiones por minuto.

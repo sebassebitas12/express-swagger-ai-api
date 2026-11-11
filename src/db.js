@@ -1,4 +1,5 @@
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
 if (!process.env.DATABASE_URL) {
   process.env.DATABASE_URL = 'file:./dev.db';
 }
